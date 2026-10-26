@@ -67,7 +67,7 @@ button,input,select{font:inherit}button{cursor:pointer;border:0;color:inherit}.a
     <div class="panel ai-chat">
       <div class="ai-controls">
         <div><label class="muted" for="npcRole">Lawan bicara</label><select id="npcRole" onchange="npcRoleChanged()"><option value="buyer">Pembeli datang ke dealer</option><option value="seller">Penjual menawarkan mobil</option></select></div>
-        <div><label class="muted" for="npcCar">Mobil untuk negosiasi</label><select id="npcCar"></select></div>
+        <div><label class="muted" for="npcCar">Mobil untuk negosiasi</label><select id="npcCar" onfocus="npcCarOptions()" aria-label="Pilih mobil dan harga untuk negosiasi"></select></div>
       </div>
       <div class="ai-log" id="npcLog" aria-live="polite"><div class="bubble system">Showroom dibuka. Pilih lawan bicara dan mobil, lalu mulai negosiasi.</div></div>
       <div class="ai-send"><input id="npcInput" maxlength="500" placeholder="Contoh: Bisa turun jadi 45 juta?" onkeydown="if(event.key==='Enter')sendNpcMessage()"><button class="btn primary" id="npcSend" onclick="sendNpcMessage()">Kirim</button></div>
@@ -135,7 +135,7 @@ const newCar = (tpl, condition, cost, id) => ({id:id||('c'+Math.random().toStrin
 function randomCar(exclude=[]){const pool=names.filter(t=>!exclude.includes(t.make+' '+t.model));const t=pool[Math.floor(Math.random()*pool.length)]||names[Math.floor(Math.random()*names.length)];const c=t.condition[0]+Math.random()*(t.condition[1]-t.condition[0]);const ageFactor=.82+Math.random()*.22;const conditionFactor=.78+(c/100)*.22;const asking=t.base*ageFactor*conditionFactor*(.94+Math.random()*.12);return {...newCar(t,c,asking),referencePrice:t.base,year:2017+Math.floor(Math.random()*9)}}
 function marketListings(count=6){const out=[];const already=[];while(out.length<count&&out.length<names.length){const c=randomCar([...already,...out.map(x=>x.make+' '+x.model)]);out.push(c);already.push(c.make+' '+c.model)}return out}
 function listingForTemplate(t){const c=Math.round(t.condition[0]+Math.random()*(t.condition[1]-t.condition[0]));const ageFactor=.78+Math.random()*.24;const conditionFactor=.78+(c/100)*.22;const asking=t.base*ageFactor*conditionFactor*(.94+Math.random()*.12);return {...newCar(t,c,asking),referencePrice:t.base,year:2017+Math.floor(Math.random()*9)}}
-function defaultState(){state={cash:95000000,day:1,rep:5,level:1,xp:0,capacity:5,cars:[newCar(names[0],88,36000000,'starter1')],market:[],feed:[],transactions:[],totalSales:0,totalProfit:0,totalSpent:0,dailyClaim:0,missionClaimed:{},upgrades:{lot:0,workshop:0,marketing:0},lastDate:new Date().toDateString(),eventClaimed:{}};state.cars[0].ask=52000000;state.market=marketListings(6);log('Selamat datang! Dealer lu resmi dibuka. Pasar akan menawarkan stok secara bertahap setiap hari.');return state}
+function defaultState(){state={cash:200000000,day:1,rep:5,level:1,xp:0,capacity:5,cars:[newCar(names[0],88,36000000,'starter1')],market:[],feed:[],transactions:[],totalSales:0,totalProfit:0,totalSpent:0,dailyClaim:0,missionClaimed:{},upgrades:{lot:0,workshop:0,marketing:0},lastDate:new Date().toDateString(),eventClaimed:{}};state.cars[0].ask=52000000;state.market=marketListings(6);log('Selamat datang! Dealer lu resmi dibuka. Pasar akan menawarkan stok secara bertahap setiap hari.');return state}
 function load(){
  try{
   const x=JSON.parse(localStorage.getItem('autolot-local-save-v1'));
@@ -148,6 +148,8 @@ function load(){
    state.rep=Number(state.rep)||5;
    state.feed=Array.isArray(state.feed)?state.feed:[];
    state.transactions=Array.isArray(state.transactions)?state.transactions:[];
+   // Upgrade the untouched starter save from the previous build to Rp200 juta.
+   if(state.day===1 && (state.totalSales||0)===0 && state.cash===95000000) state.cash=200000000;
    const today=new Date().toDateString();
    if(state.lastDate!==today){state.lastDate=today;state.dailyClaim=0;log('Hari baru! Hadiah harian sudah tersedia.');}
    // Repair older or empty saves so the lot and market are never blank.
@@ -236,7 +238,7 @@ window.resetGame=()=>{if(!confirm('Yakin hapus progres lokal dan mulai ulang?'))
 window.closeModal=()=> $('modalBack').classList.remove('show');
 
 const npcChat=[];let npcBusy=false;
-function npcCarOptions(){const role=$('npcRole').value;const list=role==='buyer'?state.cars:state.market;const select=$('npcCar');const old=select.value;select.innerHTML=list.length?list.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.make+' '+c.model)} — ${money(role==='buyer'?c.ask:c.cost)}</option>`).join(''):'<option value="">Tidak ada mobil</option>';if(list.some(c=>c.id===old))select.value=old;}
+function npcCarOptions(){const role=$('npcRole').value;const select=$('npcCar');const old=select.value;let list=role==='buyer'?state.cars:state.market;if(!Array.isArray(list))list=[];select.innerHTML='';if(list.length){select.innerHTML='<option value="" disabled>Pilih mobil untuk negosiasi…</option>'+list.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.make+' '+c.model)} — ${money(role==='buyer'?c.ask:c.cost)}</option>`).join('');if(list.some(c=>c.id===old))select.value=old;else select.selectedIndex=1;}else{select.innerHTML=`<option value="">${role==='buyer'?'Lot kosong — beli mobil dulu':'Pasar kosong — refresh pasar'}</option>`;} }
 window.npcRoleChanged=()=>{npcCarOptions();appendNpc('system',$('npcRole').value==='buyer'?'Pembeli akan menawar mobil yang ada di garasi lu.':'Penjual akan menawarkan mobil dari pasar.');};
 function appendNpc(kind,msg){const log=$('npcLog');const d=document.createElement('div');d.className='bubble '+kind;d.textContent=msg;log.appendChild(d);log.scrollTop=log.scrollHeight;}
 window.clearNpcChat=()=>{npcChat.length=0;$('npcLog').innerHTML='<div class="bubble system">Percakapan baru dimulai.</div>';};
