@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/npc.js": {
+      "maxDuration": 30
+    }
+  }
+}
