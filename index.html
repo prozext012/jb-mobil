@@ -130,7 +130,29 @@ const newCar = (tpl, condition, cost, id) => ({id:id||('c'+Math.random().toStrin
 function randomCar(exclude=[]){const pool=names.filter(t=>!exclude.includes(t.make+' '+t.model));const t=pool[Math.floor(Math.random()*pool.length)]||names[Math.floor(Math.random()*names.length)];const c=t.condition[0]+Math.random()*(t.condition[1]-t.condition[0]);const ageFactor=.82+Math.random()*.22;const conditionFactor=.78+(c/100)*.22;const asking=t.base*ageFactor*conditionFactor*(.94+Math.random()*.12);return {...newCar(t,c,asking),referencePrice:t.base,year:2017+Math.floor(Math.random()*9)}}
 function marketListings(count=6){const out=[];while(out.length<count&&out.length<names.length){const c=randomCar(out.map(x=>x.make+' '+x.model));out.push(c)}return out}
 function defaultState(){state={cash:95000000,day:1,rep:5,level:1,xp:0,capacity:5,cars:[newCar(names[0],88,36000000,'starter1')],market:[],feed:[],transactions:[],totalSales:0,totalProfit:0,totalSpent:0,dailyClaim:0,missionClaimed:{},upgrades:{lot:0,workshop:0,marketing:0},lastDate:new Date().toDateString(),eventClaimed:{}};state.cars[0].ask=52000000;state.market=marketListings(6);log('Selamat datang! Dealer lu resmi dibuka. Pasar akan menawarkan stok secara bertahap setiap hari.');return state}
-function load(){try{const x=JSON.parse(localStorage.getItem('autolot-local-save-v1'));if(x&&typeof x.cash==='number'){state=x;const today=new Date().toDateString();if(state.lastDate!==today){state.lastDate=today;state.dailyClaim=0;log('Hari baru! Hadiah harian sudah tersedia.');}}else state=defaultState();if(state&&Array.isArray(state.market)&&state.market.length&&state.market.every(c=>['Kirana','Nusantara','Veloce','Rimba','Arunika'].includes(c.make))){state.market=marketListings(6);if(state.cars?.length&&state.cars.every(c=>['Kirana','Nusantara','Veloce','Rimba','Arunika'].includes(c.make))){const starter=newCar(names[0],88,95000000,'starter-migrated');starter.ask=125000000;state.cars=[starter];log('Katalog diperbarui ke mobil populer Indonesia. Saldo dan progres dealer tetap disimpan.')}}}catch(e){state=defaultState()} save()}
+function load(){
+ try{
+  const x=JSON.parse(localStorage.getItem('autolot-local-save-v1'));
+  if(x&&typeof x.cash==='number'){
+   state=x;
+   state.cars=Array.isArray(state.cars)?state.cars:[];
+   state.market=Array.isArray(state.market)?state.market:[];
+   state.capacity=Number(state.capacity)||5;
+   state.day=Number(state.day)||1;
+   state.rep=Number(state.rep)||5;
+   state.feed=Array.isArray(state.feed)?state.feed:[];
+   state.transactions=Array.isArray(state.transactions)?state.transactions:[];
+   const today=new Date().toDateString();
+   if(state.lastDate!==today){state.lastDate=today;state.dailyClaim=0;log('Hari baru! Hadiah harian sudah tersedia.');}
+   // Repair older or empty saves so the lot and market are never blank.
+   if(state.cars.length===0){const starter=newCar(names[0],88,36000000,'starter-recovered');starter.ask=52000000;state.cars=[starter];log('Mobil awal ditambahkan agar dealer bisa langsung dimainkan.');}
+   if(state.market.length===0){state.market=marketListings(6);log('Stok pasar awal ditambahkan.');}
+   if(state.market.every(c=>['Kirana','Nusantara','Veloce','Rimba','Arunika'].includes(c.make))){state.market=marketListings(6);}
+   if(state.cars.length && state.cars.every(c=>['Kirana','Nusantara','Veloce','Rimba','Arunika'].includes(c.make))){const starter=newCar(names[0],88,36000000,'starter-migrated');starter.ask=52000000;state.cars=[starter];state.market=marketListings(6);log('Katalog diperbarui ke mobil populer Indonesia.');}
+  }else state=defaultState();
+ }catch(e){state=defaultState();}
+ save();
+}
 function save(){try{localStorage.setItem('autolot-local-save-v1',JSON.stringify(state))}catch(e){}}
 function log(msg){state.feed=state.feed||[];state.feed.unshift({day:state.day,msg});state.feed=state.feed.slice(0,8)}
 function tx(type,amount,note){state.transactions=state.transactions||[];state.transactions.unshift({day:state.day,type,amount,note});state.transactions=state.transactions.slice(0,30);if(amount<0)state.totalSpent=(state.totalSpent||0)-amount}
